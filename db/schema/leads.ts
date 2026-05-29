@@ -27,9 +27,8 @@ export const lead = pgTable(
       .notNull()
       .references(() => leadList.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
-    // All columns from the row, including a duplicate of email. Values are
-    // strings as they came from the CSV.
-    fields: jsonb('fields').$type<Record<string, string>>().notNull(),
+    // Selected columns from the row. Empty cells are stored as null.
+    fields: jsonb('fields').$type<Record<string, string | null>>().notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [index('lead_list_id_idx').on(t.listId)],

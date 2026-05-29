@@ -28,14 +28,15 @@ export function referencedFields(template: string): string[] {
  */
 export function render(
   template: string,
-  fields: Record<string, string>,
+  fields: Record<string, string | null>,
   fallback = '',
 ): { text: string; missing: string[] } {
   const missing: string[] = [];
   const text = template.replace(TOKEN_RE, (_full, name: string) => {
     const key = normalizeKey(name);
     const val = fields[key];
-    if (val === undefined || val === '') {
+    // null = an empty cell we stored explicitly; treat like missing.
+    if (val === undefined || val === null || val === '') {
       missing.push(key);
       return fallback;
     }
