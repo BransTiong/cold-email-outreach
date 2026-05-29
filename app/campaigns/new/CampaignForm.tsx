@@ -28,10 +28,12 @@ type Field = 'subject' | 'body';
 export function CampaignForm({ lists }: { lists: List[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [testing, startTest] = useTransition();
   const [listId, setListId] = useState(lists[0]?.id ?? '');
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [testTo, setTestTo] = useState('');
 
   // Track which template field the cursor is in, so a merge-field click inserts
   // there. Default to body (the main content).
@@ -69,6 +71,29 @@ export function CampaignForm({ lists }: { lists: List[] }) {
     const end = el?.selectionEnd ?? value.length;
     setValue(value.slice(0, start) + token + value.slice(end));
     pendingCaret.current = { field: activeField, pos: start + token.length };
+  };
+
+  const sendTest = () => {
+    if (!subject || !body) {
+      toast.error('Add a subject and body first.');
+      return;
+    }
+    startTest(async () => {
+      const res = await sendJson('/v1/test-send', {
+        to: testTo,
+        listId,
+        subjectTemplate: subject,
+        bodyTemplate: body,
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(`Test failed: ${json.error}${json.detail ? ` — ${json.detail}` : ''}`);
+        return;
+      }
+      toast.success(`Test sent to ${json.sentTo}`, {
+        description: `From ${json.from} · merge fields from ${json.usedLead}`,
+      });
+    });
   };
 
   const submit = (e: React.FormEvent) => {
@@ -166,6 +191,26 @@ export function CampaignForm({ lists }: { lists: List[] }) {
             className="font-mono text-sm"
             placeholder={'<p>Hi {{firstName}},</p>\n<p>I saw {{companyName}} and ...</p>'}
           />
+        </div>
+
+        <div className="rounded-md border border-border bg-secondary/30 p-3">
+          <div className="text-sm font-medium">Send a test</div>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Delivers this exact email to one address, with merge fields filled from the first lead in
+            the selected list — great for a quick demo.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input
+              type="email"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder="you@example.com"
+              className="sm:flex-1"
+            />
+            <Button type="button" variant="secondary" onClick={sendTest} disabled={testing || !testTo}>
+              {testing ? 'Sending…' : 'Send test'}
+            </Button>
+          </div>
         </div>
 
         <Button type="submit" disabled={pending}>
