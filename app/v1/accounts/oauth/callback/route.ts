@@ -3,6 +3,7 @@ import { gmailAccount } from '@/db/schema/index';
 import { exchangeCode } from '@/lib/google-oauth';
 import { encrypt } from '@/lib/crypto';
 import { pendingStates } from '@/lib/oauth-state';
+import { getEnv } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,9 +30,11 @@ export async function GET(req: Request) {
       set: { refreshTokenEnc, status: 'active' },
     });
 
-  // Bounce back to the UI with a success flag.
+  // Bounce back to the UI with a success flag. Use PUBLIC_BASE_URL, NOT
+  // url.origin — behind a TLS-terminating proxy (Caddy) req.url's origin is the
+  // app's internal http://host:5050, which would send the browser to localhost.
   return Response.redirect(
-    new URL(`/accounts?connected=${encodeURIComponent(email)}`, url.origin).toString(),
+    `${getEnv().PUBLIC_BASE_URL}/accounts?connected=${encodeURIComponent(email)}`,
     302,
   );
 }
