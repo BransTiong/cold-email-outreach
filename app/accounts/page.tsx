@@ -1,5 +1,7 @@
+import { redirect } from 'next/navigation';
 import { getDb } from '@/db/index';
 import { gmailAccount } from '@/db/schema/index';
+import { getSession } from '@/lib/session';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +22,7 @@ export default async function AccountsPage({
 }: {
   searchParams: Promise<{ connected?: string }>;
 }) {
+  if (!(await getSession())) redirect('/login');
   const { connected } = await searchParams;
   const rows = await getDb().select().from(gmailAccount);
 

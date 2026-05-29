@@ -1,9 +1,12 @@
 import { getDb } from '@/db/index';
 import { seedMailbox } from '@/db/schema/index';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const seeds = await getDb().select().from(seedMailbox);
   return Response.json({ seeds });
 }
@@ -12,6 +15,8 @@ const PROVIDERS = ['gmail', 'outlook', 'yahoo', 'other'] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const body = (await req.json().catch(() => null)) as {
     email?: string;
     provider?: 'gmail' | 'outlook' | 'yahoo' | 'other';

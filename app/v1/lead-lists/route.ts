@@ -2,10 +2,13 @@ import { parse } from 'csv-parse/sync';
 import { getDb } from '@/db/index';
 import { leadList, lead } from '@/db/schema/index';
 import { normalizeKey } from '@/lib/template';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const form = await req.formData().catch(() => null);
   if (!form) return Response.json({ error: 'expected_multipart_form' }, { status: 400 });
 
@@ -58,7 +61,9 @@ export async function POST(req: Request) {
   );
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const lists = await getDb().select().from(leadList);
   return Response.json({ lists });
 }

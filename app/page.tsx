@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getDb } from '@/db/index';
 import { gmailAccount, campaign, recipient } from '@/db/schema/index';
 import { getSchedulerConfig, schedulerOpenNow } from '@/lib/scheduler-config';
 import { statColumns } from '@/lib/stats';
+import { getSession } from '@/lib/session';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +20,7 @@ import { StatusBadge } from '@/components/status-badge';
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
+  if (!(await getSession())) redirect('/login');
   let db;
   try {
     db = getDb();

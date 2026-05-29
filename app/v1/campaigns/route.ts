@@ -2,15 +2,20 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/index';
 import { campaign, leadList } from '@/db/schema/index';
 import { referencedFields } from '@/lib/template';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const rows = await getDb().select().from(campaign);
   return Response.json({ campaigns: rows });
 }
 
 export async function POST(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const body = (await req.json().catch(() => null)) as {
     name?: string;
     listId?: string;

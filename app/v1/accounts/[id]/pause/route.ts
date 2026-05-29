@@ -1,10 +1,13 @@
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/index';
 import { gmailAccount } from '@/db/schema/index';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { paused?: boolean };
   const status = body.paused ? 'paused' : 'active';

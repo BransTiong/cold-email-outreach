@@ -2,36 +2,44 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Edge guard (Next 16 "proxy", formerly middleware) so the app can be exposed
- * through a tunnel for the open-tracking pixel WITHOUT exposing the
- * unauthenticated UI/API.
+ * Auth gate (Next 16 "proxy"). Unauthenticated requests are redirected to
+ * /login (pages) or rejected with 401 (API/data). Real session validation
+ * happens in the pages/route handlers via getSession; here we only do the fast
+ * optimistic cookie check Better Auth recommends for middleware.
  *
- * Public from anywhere: the tracking endpoints (`/t/*` — open pixel +
- * unsubscribe) and `/healthz`. Everything else (the UI and `/v1/*`, which can
- * send mail, connect accounts, read data) is served only when the request's
- * Host is local. A tunnel forwards the public hostname in the Host header, so a
- * non-local Host ⇒ the request came from the internet ⇒ 404 for anything
- * outside the public surface.
+ * Public surface (no login):
+ *  - /t/*                         open pixel + unsubscribe (recipients / Gmail)
+ *  - /api/auth/*                  Better Auth endpoints
+ *  - /login                       the login page
+ *  - /healthz                     health check
+ *  - /v1/accounts/oauth/callback  Google's OAuth redirect (carries no session)
  */
-const PUBLIC_PREFIXES = ['/t/'];
-const PUBLIC_EXACT = new Set(['/healthz']);
+const PUBLIC_PREFIXES = ['/t/', '/api/auth/', '/login'];
+const PUBLIC_EXACT = new Set(['/healthz', '/v1/accounts/oauth/callback']);
+
+function hasSessionCookie(req: NextRequest): boolean {
+  // Check both the secure-prefixed (https/prod, behind Caddy) and plain
+  // (local http) cookie names so TLS-terminating proxies don't break the gate.
+  return Boolean(
+    req.cookies.get('__Secure-better-auth.session_token')?.value ??
+      req.cookies.get('better-auth.session_token')?.value,
+  );
+}
 
 export function proxy(req: NextRequest): NextResponse {
-  // In production the app runs behind a trusted reverse proxy (Caddy) that
-  // enforces the public/authenticated split, so the app must NOT host-gate
-  // there (the real domain isn't "localhost"). This guard only matters for
-  // local dev, where it keeps a dev tunnel from exposing the unauthenticated
-  // UI/API — only `/t/*` and `/healthz` are reachable off-box.
-  if (process.env.NODE_ENV !== 'development') return NextResponse.next();
-
   const { pathname } = req.nextUrl;
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) || PUBLIC_EXACT.has(pathname)) {
     return NextResponse.next();
   }
-  const host = (req.headers.get('host') ?? '').toLowerCase();
-  const isLocal =
-    host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('[::1]');
-  return isLocal ? NextResponse.next() : new NextResponse('Not found', { status: 404 });
+  if (hasSessionCookie(req)) return NextResponse.next();
+
+  if (pathname.startsWith('/v1/') || pathname.startsWith('/api/')) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+  const url = req.nextUrl.clone();
+  url.pathname = '/login';
+  url.search = '';
+  return NextResponse.redirect(url);
 }
 
 export const config = {

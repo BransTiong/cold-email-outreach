@@ -3,13 +3,16 @@ import { getDb } from '@/db/index';
 import { gmailAccount, seedMailbox, placementResult } from '@/db/schema/index';
 import { clientForAccount } from '@/lib/google-oauth';
 import { placementForQuery } from '@/lib/gmail';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string; marker: string }> },
 ) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const { id, marker } = await params;
   const db = getDb();
   const seedRows = await db.select().from(seedMailbox);

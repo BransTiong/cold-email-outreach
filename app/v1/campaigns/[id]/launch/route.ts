@@ -2,10 +2,13 @@ import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/index';
 import { campaign, recipient, lead } from '@/db/schema/index';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const { id } = await params;
   const db = getDb();
 

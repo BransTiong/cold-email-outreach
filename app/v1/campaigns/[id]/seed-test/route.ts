@@ -7,10 +7,13 @@ import { sendRaw } from '@/lib/gmail';
 import { buildRawMessage } from '@/lib/mime';
 import { render } from '@/lib/template';
 import { getEnv } from '@/lib/env';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const { id } = await params;
   const db = getDb();
 

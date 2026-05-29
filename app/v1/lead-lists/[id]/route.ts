@@ -1,10 +1,13 @@
 import { eq, sql } from 'drizzle-orm';
 import { getDb } from '@/db/index';
 import { leadList, lead } from '@/db/schema/index';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const { id } = await params;
   const db = getDb();
   const [list] = await db.select().from(leadList).where(eq(leadList.id, id));

@@ -1,13 +1,16 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { desc } from 'drizzle-orm';
 import { getDb } from '@/db/index';
 import { leadList } from '@/db/schema/index';
+import { getSession } from '@/lib/session';
 import { Card } from '@/components/ui/card';
 import { CampaignForm } from './CampaignForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewCampaignPage() {
+  if (!(await getSession())) redirect('/login');
   const lists = await getDb()
     .select({ id: leadList.id, name: leadList.name, headers: leadList.headers })
     .from(leadList)

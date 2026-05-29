@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { getDb } from '@/db/index';
 import { campaign } from '@/db/schema/index';
 import { campaignStats } from '@/lib/stats';
+import { getSession } from '@/lib/session';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/status-badge';
 import { CampaignControls } from './CampaignControls';
@@ -10,6 +12,7 @@ import { CampaignControls } from './CampaignControls';
 export const dynamic = 'force-dynamic';
 
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
+  if (!(await getSession())) redirect('/login');
   const { id } = await params;
   const db = getDb();
   // Both depend only on the route id, not on each other — fetch in parallel.

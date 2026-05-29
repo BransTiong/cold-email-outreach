@@ -1,10 +1,13 @@
+import { redirect } from 'next/navigation';
 import { getDb } from '@/db/index';
 import { getSchedulerConfig, schedulerOpenNow } from '@/lib/scheduler-config';
+import { getSession } from '@/lib/session';
 import { SchedulerForm } from './SchedulerForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SchedulerPage() {
+  if (!(await getSession())) redirect('/login');
   const cfg = await getSchedulerConfig(getDb());
   const open = schedulerOpenNow(cfg);
 

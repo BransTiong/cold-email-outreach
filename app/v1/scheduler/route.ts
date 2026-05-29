@@ -3,6 +3,7 @@ import { getDb } from '@/db/index';
 import { schedulerConfig } from '@/db/schema/index';
 import { getSchedulerConfig, schedulerOpenNow } from '@/lib/scheduler-config';
 import { parseHm, isValidTimezone } from '@/lib/time';
+import { requireSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,9 @@ function stripMeta(cfg: typeof schedulerConfig.$inferSelect) {
   return { ...rest, updatedAt: updatedAt.toISOString() };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const cfg = await getSchedulerConfig(getDb());
   return Response.json({ ...stripMeta(cfg), sendingOpenNow: schedulerOpenNow(cfg) });
 }
@@ -28,6 +31,8 @@ interface Patch {
 }
 
 export async function PATCH(req: Request) {
+  const unauth = await requireSession(req);
+  if (unauth) return unauth;
   const b = (await req.json().catch(() => ({}))) as Patch;
 
   if (b.windowStart !== undefined && parseHm(b.windowStart) === null) {

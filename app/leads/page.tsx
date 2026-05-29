@@ -1,6 +1,8 @@
+import { redirect } from 'next/navigation';
 import { desc } from 'drizzle-orm';
 import { getDb } from '@/db/index';
 import { leadList } from '@/db/schema/index';
+import { getSession } from '@/lib/session';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -16,6 +18,7 @@ import { UploadForm } from './UploadForm';
 export const dynamic = 'force-dynamic';
 
 export default async function LeadsPage() {
+  if (!(await getSession())) redirect('/login');
   const lists = await getDb().select().from(leadList).orderBy(desc(leadList.createdAt));
 
   return (
