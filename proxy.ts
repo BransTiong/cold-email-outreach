@@ -17,6 +17,13 @@ const PUBLIC_PREFIXES = ['/t/'];
 const PUBLIC_EXACT = new Set(['/healthz']);
 
 export function proxy(req: NextRequest): NextResponse {
+  // In production the app runs behind a trusted reverse proxy (Caddy) that
+  // enforces the public/authenticated split, so the app must NOT host-gate
+  // there (the real domain isn't "localhost"). This guard only matters for
+  // local dev, where it keeps a dev tunnel from exposing the unauthenticated
+  // UI/API — only `/t/*` and `/healthz` are reachable off-box.
+  if (process.env.NODE_ENV !== 'development') return NextResponse.next();
+
   const { pathname } = req.nextUrl;
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) || PUBLIC_EXACT.has(pathname)) {
     return NextResponse.next();

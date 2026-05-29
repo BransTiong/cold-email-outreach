@@ -1,0 +1,40 @@
+# coldmail — deploy alongside the shared Caddy on the VPS.
+# The app joins the external `n8n_web` network so the existing Caddy can reach
+# it by service name (coldmail-app:5050). Postgres is dedicated and never
+# published to the host. Secrets come from a server-only .env (see .env.example).
+services:
+  coldmail-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: coldmail
+      POSTGRES_USER: coldmail
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - coldmail_pg:/var/lib/postgresql/data
+    networks: [coldmail_internal]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U coldmail -d coldmail']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  coldmail-app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      coldmail-postgres:
+        condition: service_healthy
+    expose:
+      - '5050'
+    networks: [coldmail_internal, n8n_web]
+
+networks:
+  coldmail_internal:
+    driver: bridge
+  n8n_web:
+    external: true
+
+volumes:
+  coldmail_pg:
