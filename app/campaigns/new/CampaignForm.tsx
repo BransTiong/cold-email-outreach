@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -24,6 +23,8 @@ interface List {
   headers: string[];
 }
 
+type Field = 'subject' | 'body';
+
 export function CampaignForm({ lists }: { lists: List[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -32,7 +33,43 @@ export function CampaignForm({ lists }: { lists: List[] }) {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
 
+  // Track which template field the cursor is in, so a merge-field click inserts
+  // there. Default to body (the main content).
+  const [activeField, setActiveField] = useState<Field>('body');
+  // After we splice a token into a controlled value, restore the caret once the
+  // new value has committed to the DOM.
+  const pendingCaret = useRef<{ field: Field; pos: number } | null>(null);
+
+  useEffect(() => {
+    const p = pendingCaret.current;
+    if (!p) return;
+    pendingCaret.current = null;
+    const el = document.getElementById(p.field) as
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | null;
+    if (el) {
+      el.focus();
+      el.setSelectionRange(p.pos, p.pos);
+    }
+  }, [subject, body]);
+
   const fields = lists.find((l) => l.id === listId)?.headers ?? [];
+
+  const insertToken = (key: string) => {
+    const token = `{{${key}}}`;
+    const el = document.getElementById(activeField) as
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | null;
+    const value = activeField === 'subject' ? subject : body;
+    const setValue = activeField === 'subject' ? setSubject : setBody;
+    // Insert at the caret/selection if the field is focused, else append.
+    const start = el?.selectionStart ?? value.length;
+    const end = el?.selectionEnd ?? value.length;
+    setValue(value.slice(0, start) + token + value.slice(end));
+    pendingCaret.current = { field: activeField, pos: start + token.length };
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,16 +120,25 @@ export function CampaignForm({ lists }: { lists: List[] }) {
           </Select>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          <span>Merge fields:</span>
+        <div className="space-y-1.5">
+          <div className="text-xs text-muted-foreground">
+            Merge fields — click to insert into the {activeField}:
+          </div>
           {fields.length ? (
-            fields.map((f) => (
-              <Badge key={f} variant="secondary" className="font-mono font-normal">
-                {`{{${f}}}`}
-              </Badge>
-            ))
+            <div className="flex flex-wrap gap-1.5">
+              {fields.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => insertToken(f)}
+                  className="rounded-md border border-border bg-secondary px-2 py-0.5 font-mono text-xs text-secondary-foreground transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-300"
+                >
+                  {`{{${f}}}`}
+                </button>
+              ))}
+            </div>
           ) : (
-            <span>none</span>
+            <span className="text-xs text-muted-foreground">none</span>
           )}
         </div>
 
@@ -102,6 +148,7 @@ export function CampaignForm({ lists }: { lists: List[] }) {
             id="subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+            onFocus={() => setActiveField('subject')}
             required
             placeholder="Quick question, {{firstName}}"
           />
@@ -113,10 +160,11 @@ export function CampaignForm({ lists }: { lists: List[] }) {
             id="body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
+            onFocus={() => setActiveField('body')}
             required
             rows={8}
             className="font-mono text-sm"
-            placeholder={'<p>Hi {{firstName}},</p>\n<p>I saw {{company}} and ...</p>'}
+            placeholder={'<p>Hi {{firstName}},</p>\n<p>I saw {{companyName}} and ...</p>'}
           />
         </div>
 
